@@ -12,7 +12,10 @@ ROLES = [
     "data analyst",
     "machine learning engineer",
     "data scientist",
-    "analytics engineer"
+    "analytics engineer",
+    "cloud engineer",
+    "software engineer",
+    "business intelligence analyst"
 ]
 
 def insert_jobs(conn, jobs):
