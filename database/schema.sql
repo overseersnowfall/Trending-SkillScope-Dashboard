@@ -11,3 +11,11 @@ CREATE TABLE raw_jobs (
   posted_at   TIMESTAMP,
   fetched_at  TIMESTAMP DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS skill_counts (
+    id         SERIAL PRIMARY KEY,
+    role       VARCHAR(100),
+    skill      VARCHAR(100),
+    count      INTEGER,
+    updated_at TIMESTAMP DEFAULT NOW()
+);
