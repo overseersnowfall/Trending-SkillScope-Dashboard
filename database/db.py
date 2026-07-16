@@ -15,6 +15,20 @@ def get_connection():
         sslmode="require"
     )
 
+from sqlalchemy import create_engine
+
+def get_engine():
+    """Return a SQLAlchemy engine for use with pandas read_sql."""
+    load_dotenv()
+    db_url = (
+        f"postgresql+psycopg2://"
+        f"{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}"
+        f"@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT', '5432')}"
+        f"/{os.getenv('DB_NAME')}"
+        f"?sslmode=require"
+    )
+    return create_engine(db_url)
+
 if __name__ == "__main__":
     try:
         conn = get_connection()

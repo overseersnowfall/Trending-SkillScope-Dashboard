@@ -63,7 +63,7 @@ if __name__ == "__main__":
     conn.close()
     print("\nTop skills per role:")
     for role, skill_dict in counts.items():
-        topskills = sorted(skill_dict.items(), key=lambda x: x[1], reverse=True)[:15]#5 for top 5 skills
+        topskills = sorted(skill_dict.items(), key=lambda x: x[1], reverse=True)[:10]#5 for top 5 skills
         print(f"\n{role}:")
         for skill, count in topskills:
             print(f"  {skill}: {count}")
