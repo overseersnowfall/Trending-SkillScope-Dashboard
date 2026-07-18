@@ -61,6 +61,34 @@ REED_API_KEY = os.getenv("REED_API_KEY")
 SEARCH_URL   = "https://www.reed.co.uk/api/1.0/search"
 DETAILS_URL  = "https://www.reed.co.uk/api/1.0/jobs/{job_id}"
 
+# Keywords that must appear in the job title for each role
+ROLE_TITLE_KEYWORDS = {
+    "data engineer"              : ["data engineer", "data engineering"],
+    "data analyst"               : ["data analyst", "data analysis"],
+    "machine learning engineer"  : ["machine learning", "ml engineer"],
+    "data scientist"             : ["data scientist", "data science"],
+    "cloud engineer"             : ["cloud engineer", "cloud architect",
+                                    "cloud platform", "platform engineer"],
+    "software engineer"          : ["software engineer", "software developer",
+                                    "software development"],
+    "devops engineer"            : ["devops", "dev ops", "site reliability",
+                                    "sre", "platform engineer"],
+    "cybersecurity analyst"      : ["cyber", "security analyst",
+                                    "information security", "infosec",
+                                    "penetration", "soc analyst"]
+}
+
+def is_relevant_job(job_title, role):
+    """
+    Return True if the job title is genuinely relevant to the searched role.
+    Prevents Reed's fuzzy search from polluting our data with unrelated jobs.
+    """
+    if not job_title:
+        return False
+    title_lower = job_title.lower()
+    keywords = ROLE_TITLE_KEYWORDS.get(role, [])
+    return any(keyword in title_lower for keyword in keywords)
+
 def convert_date(date_str):
     """Convert Reed's DD/MM/YYYY date format to YYYY-MM-DD for PostgreSQL."""
     if not date_str:
@@ -121,11 +149,17 @@ def fetch_jobs(role, results_per_page=50):
     print(f"  Fetching full descriptions for {len(results)} jobs...")
 
     for job in results:
+        job_title = job.get("jobTitle", "")
+
+        # Skip jobs that aren't relevant to the searched role
+        if not is_relevant_job(job_title, role):
+            continue
+
         job_id      = job.get("jobId")
         description = fetch_job_details(job_id) if job_id else None
 
         jobs.append({
-            "job_title"  : job.get("jobTitle"),
+            "job_title"  : job_title,
             "company"    : job.get("employerName"),
             "location"   : job.get("locationName"),
             "salary_min" : job.get("minimumSalary"),
