@@ -55,13 +55,14 @@ def run_pipeline():
 
     total_inserted = 0
     for role in ROLES:
-        print(f"Fetching: {role}...")
+        print(f"\nFetching: {role}...")
         jobs = fetch_jobs(role)
-        print(f"  Got {len(jobs)} jobs from API")
+        print(f"  Total relevant jobs found: {len(jobs)}")
         inserted = insert_jobs(conn, jobs)
         print(f"  Inserted {inserted} new rows (duplicates skipped)")
         total_inserted += inserted
     conn.close()
+    
     print(f"\nDone. Total new jobs inserted: {total_inserted}")
 
 if __name__ == "__main__":

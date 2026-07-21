@@ -63,19 +63,62 @@ DETAILS_URL  = "https://www.reed.co.uk/api/1.0/jobs/{job_id}"
 
 # Keywords that must appear in the job title for each role
 ROLE_TITLE_KEYWORDS = {
-    "data engineer"              : ["data engineer", "data engineering"],
-    "data analyst"               : ["data analyst", "data analysis"],
-    "machine learning engineer"  : ["machine learning", "ml engineer"],
-    "data scientist"             : ["data scientist", "data science"],
-    "cloud engineer"             : ["cloud engineer", "cloud architect",
-                                    "cloud platform", "platform engineer"],
-    "software engineer"          : ["software engineer", "software developer",
-                                    "software development"],
-    "devops engineer"            : ["devops", "dev ops", "site reliability",
-                                    "sre", "platform engineer"],
-    "cybersecurity analyst"      : ["cyber", "security analyst",
-                                    "information security", "infosec",
-                                    "penetration", "soc analyst"]
+    "data engineer": [
+        "data engineer", "data engineering",
+        "etl engineer", "analytics engineer",
+        "data platform", "data infrastructure",
+        "Principal Data Engineer", "Lead Data Engineer",
+        "Senior Data Engineer", "Junior Data Engineer",
+        "Data Engineer II", "Data Engineer III",
+
+    ],
+    "data analyst": [
+        "data analyst", "data analysis",
+        "insight analyst", "insights analyst",
+        "reporting analyst", "bi analyst",
+        "junior analyst", "senior analyst",
+        "analytics analyst", "Business Analyst",
+        "Financial Analyst", "Marketing Analyst",
+        "Systems Analyst"
+    ],
+    "machine learning engineer": [
+        "machine learning", "ml engineer",
+        "ai engineer", "artificial intelligence engineer",
+        "nlp engineer", "computer vision engineer",
+        "mlops engineer"
+    ],
+    "data scientist": [
+        "data scientist", "data science",
+        "applied scientist", "research scientist",
+        "quantitative analyst", "quant analyst"
+    ],
+    "cloud engineer": [
+        "cloud engineer", "cloud architect",
+        "cloud platform", "platform engineer",
+        "infrastructure engineer", "cloud infrastructure",
+        "solutions architect", "cloud consultant"
+    ],
+    "software engineer": [
+        "software engineer", "software developer",
+        "software development", "backend engineer",
+        "backend developer", "full stack", "fullstack",
+        "frontend engineer", "web developer",
+        "application developer", "python developer",
+        "java developer"
+    ],
+    "devops engineer": [
+        "devops", "dev ops", "site reliability",
+        "sre", "platform engineer",
+        "infrastructure engineer", "release engineer",
+        "build engineer", "cloud engineer"
+    ],
+    "cybersecurity analyst": [
+        "cyber", "security analyst",
+        "information security", "infosec",
+        "penetration", "soc analyst",
+        "security engineer", "security consultant",
+        "vulnerability", "threat", "security operations"
+    ]
 }
 
 def is_relevant_job(job_title, role):
@@ -117,60 +160,72 @@ def fetch_job_details(job_id):
     except requests.exceptions.RequestException:
         return None
 
-def fetch_jobs(role, results_per_page=50):
+def fetch_jobs(role, results_per_page=50, pages=5):
     """
-    Fetch job postings from Reed for a given role.
-    Step 1: search for jobs to get IDs and basic info.
-    Step 2: fetch full description for each job individually.
-    Returns a list of job dictionaries.
+    Fetch job postings from Reed across multiple pages.
+    Default 5 pages = up to 250 results checked per role.
     """
-    params = {
-        "keywords"      : role,
-        "locationName"  : "UK",
-        "resultsToTake" : results_per_page,
-        "resultsToSkip" : 0
-    }
+    all_jobs = []
+    skipped_total = 0
 
-    try:
-        response = requests.get(
-            SEARCH_URL,
-            params=params,
-            auth=(REED_API_KEY, ""),
-            timeout=10
-        )
-        response.raise_for_status()
-        data = response.json()
-    except requests.exceptions.RequestException as e:
-        print(f"  Search failed for '{role}': {e}")
-        return []
+    for page in range(pages):
+        params = {
+            "keywords"            : role,
+            "locationName"        : "United Kingdom",
+            "distancefromLocation": 1000,
+            "resultsToTake"       : results_per_page,
+            "resultsToSkip"       : page * results_per_page
+        }
 
-    jobs = []
-    results = data.get("results", [])
-    print(f"  Fetching full descriptions for {len(results)} jobs...")
+        try:
+            response = requests.get(
+                SEARCH_URL,
+                params=params,
+                auth=(REED_API_KEY, ""),
+                timeout=10
+            )
+            response.raise_for_status()
+            data = response.json()
+        except requests.exceptions.RequestException as e:
+            print(f"  Search failed on page {page + 1} for '{role}': {e}")
+            break
 
-    for job in results:
-        job_title = job.get("jobTitle", "")
+        results = data.get("results", [])
 
-        # Skip jobs that aren't relevant to the searched role
-        if not is_relevant_job(job_title, role):
-            continue
+        # Stop early if Reed returns fewer results than requested
+        # meaning we've reached the end of available jobs
+        if not results:
+            break
 
-        job_id      = job.get("jobId")
-        description = fetch_job_details(job_id) if job_id else None
+        skipped = 0
+        for job in results:
+            job_title = job.get("jobTitle", "")
+            if not is_relevant_job(job_title, role):
+                skipped += 1
+                continue
 
-        jobs.append({
-            "job_title"  : job_title,
-            "company"    : job.get("employerName"),
-            "location"   : job.get("locationName"),
-            "salary_min" : job.get("minimumSalary"),
-            "salary_max" : job.get("maximumSalary"),
-            "description": description,
-            "job_url"    : job.get("jobUrl"),
-            "posted_at"  : convert_date(job.get("date")),
-            "search_term": role
-        })
+            job_id      = job.get("jobId")
+            description = fetch_job_details(job_id) if job_id else None
 
-    return jobs
+            all_jobs.append({
+                "job_title"  : job_title,
+                "company"    : job.get("employerName"),
+                "location"   : job.get("locationName"),
+                "salary_min" : job.get("minimumSalary"),
+                "salary_max" : job.get("maximumSalary"),
+                "description": description,
+                "job_url"    : job.get("jobUrl"),
+                "posted_at"  : convert_date(job.get("date")),
+                "search_term": role
+            })
+
+        skipped_total += skipped
+        print(f"  Page {page + 1}: {len(results)} results, "
+              f"{skipped} filtered, "
+              f"{len(results) - skipped} kept")
+
+    print(f"  Total filtered: {skipped_total} irrelevant titles")
+    return all_jobs
 
 
 if __name__ == "__main__":
