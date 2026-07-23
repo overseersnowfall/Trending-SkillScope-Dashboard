@@ -16,17 +16,24 @@ ROLES = [
 ]
 
 def get_top_skills(role, limit=10):
-    """Return a DataFrame of top skills for a given role."""
+    """Return a DataFrame of top skills with counts and percentages."""
     engine = get_engine()
+    
+    # Get total jobs for this role to calculate percentage
+    total_sql = "SELECT COUNT(*) as total FROM raw_jobs WHERE source = %s"
+    total_df  = pd.read_sql(total_sql, engine, params=(role,))
+    total     = int(total_df["total"][0])
+
     sql = """
-        SELECT skill, count
+        SELECT skill, count,
+               ROUND((count::float / %s * 100)::numeric, 1) AS percentage
         FROM skill_counts
         WHERE role = %s
         ORDER BY count DESC
         LIMIT %s
     """
-    df = pd.read_sql(sql, engine, params=(role, limit))
-    return df
+    df = pd.read_sql(sql, engine, params=(total, role, limit))
+    return df, total
 
 def get_salary_summary(role):
     """Return avg min and avg max salary for a role."""
