@@ -2,10 +2,11 @@ import sys, os
 import streamlit as st
 import plotly.express as px
 import re
+import pandas as pd
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dashboard.data import (
     ROLES, get_top_skills, get_salary_summary,
-    get_total_jobs, get_top_locations, get_comparison_skills
+    get_total_jobs, get_top_locations, get_seniority_breakdown
 )
 
 st.set_page_config(
@@ -67,39 +68,81 @@ else:
     st.plotly_chart(fig, use_container_width=True)
 st.divider()
 
-# ── SECTION 3: Role comparison ──────────────────────
-st.subheader("⚖️ Role Comparison")
-compare_role = st.selectbox(
-    "Compare with:",
-    options=[r for r in ROLES if r != selected_role],
-    format_func=lambda x: x.title()
-)
+# ── SECTION 3: Seniority breakdown ──────────────────
+st.subheader(f"🎓 Entry Level vs Senior — {selected_role.title()}")
+st.caption("Based on job title keywords across all postings in the database")
 
-comp_df = get_comparison_skills(selected_role, compare_role)
-if comp_df.empty:
-    st.info("No shared skills found between these two roles.")
+sen_result = get_seniority_breakdown(selected_role)
+
+if isinstance(sen_result, pd.DataFrame) and sen_result.empty:
+    st.info("No seniority data available for this role.")
 else:
-    fig2 = px.bar(
-        comp_df,
-        x="skill",
-        y=["role1_count", "role2_count"],
-        barmode="group",
-        labels={
-            "value"     : "Job postings",
-            "skill"     : "Skill",
-            "variable"  : "Role"
-        },
+    sen_df, sen_total = sen_result
+
+    # Metric summary above the chart
+    junior_row = sen_df[sen_df["seniority"] == "Junior / Graduate"]
+    mid_row    = sen_df[sen_df["seniority"] == "Mid-level"]
+    senior_row = sen_df[sen_df["seniority"] == "Senior / Lead"]
+
+    junior_pct = float(junior_row["percentage"].values[0]) \
+                 if not junior_row.empty else 0
+    mid_pct    = float(mid_row["percentage"].values[0]) \
+                 if not mid_row.empty else 0
+    senior_pct = float(senior_row["percentage"].values[0]) \
+                 if not senior_row.empty else 0
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Junior / Graduate", f"{junior_pct}%")
+    c2.metric("Mid-level",         f"{mid_pct}%")
+    c3.metric("Senior / Lead",     f"{senior_pct}%")
+
+    # Bar chart
+    fig_sen = px.bar(
+        sen_df,
+        x="seniority",
+        y="percentage",
+        text="percentage",
+        color="seniority",
         color_discrete_map={
-            "role1_count": "#378ADD",
-            "role2_count": "#1D9E75"
+            "Junior / Graduate": "#1D9E75",
+            "Mid-level"        : "#378ADD",
+            "Senior / Lead"    : "#534AB7",
+            "Manager"          : "#BA7517"
+        },
+        labels={
+            "percentage": "% of job postings",
+            "seniority" : "Seniority level"
         }
     )
-    newnames = {
-        "role1_count": selected_role.title(),
-        "role2_count": compare_role.title()
-    }
-    fig2.for_each_trace(lambda t: t.update(name=newnames[t.name]))
-    st.plotly_chart(fig2, use_container_width=True)
+    fig_sen.update_traces(
+        texttemplate="%{text}%",
+        textposition="outside",
+        showlegend=False
+    )
+    fig_sen.update_layout(showlegend=False)
+    fig_sen.update_yaxes(range=[0, 110])
+    st.plotly_chart(fig_sen, use_container_width=True)
+
+    # Plain-English takeaway for the student
+    if junior_pct < 10:
+        st.warning(
+            f"⚠️ Only {junior_pct}% of {selected_role.title()} postings are "
+            f"junior or graduate level. This is a competitive entry point — "
+            f"internships, personal projects, and bootcamps will help you "
+            f"stand out."
+        )
+    elif junior_pct < 25:
+        st.info(
+            f"ℹ️ {junior_pct}% of postings are junior or graduate level. "
+            f"Entry-level roles exist but are limited — strong portfolio "
+            f"projects are important."
+        )
+    else:
+        st.success(
+            f"✅ {junior_pct}% of postings are junior or graduate level — "
+            f"a healthy number of entry opportunities for this role."
+        )
+
 st.divider()
 
 # ── SECTION 4: Hot locations ────────────────────────

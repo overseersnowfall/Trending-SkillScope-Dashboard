@@ -15,6 +15,66 @@ ROLES = [
     "cybersecurity analyst"
 ]
 
+def get_seniority_breakdown(role):
+    """
+    Classify job titles by seniority level and return percentage breakdown.
+    Uses job_title text from raw_jobs — no extra API calls needed.
+    """
+    engine = get_engine()
+
+    sql = """
+        SELECT job_title
+        FROM raw_jobs
+        WHERE source = %s
+        AND job_title IS NOT NULL
+    """
+    df = pd.read_sql(sql, engine, params=(role,))
+
+    if df.empty:
+        return pd.DataFrame()
+
+    # Classify each title into a seniority bucket
+    def classify(title):
+        t = title.lower()
+        if any(w in t for w in [
+            "junior", "jr", "graduate", "grad",
+            "entry", "trainee", "apprentice", "associate"
+        ]):
+            return "Junior / Graduate"
+        elif any(w in t for w in [
+            "senior", "sr", "principal", "staff",
+            "lead", "head", "director", "vp", "chief"
+        ]):
+            return "Senior / Lead"
+        elif any(w in t for w in [
+            "manager", "managing", "management"
+        ]):
+            return "Manager"
+        else:
+            return "Mid-level"
+
+    df["seniority"] = df["job_title"].apply(classify)
+
+    total = len(df)
+    breakdown = (
+        df["seniority"]
+        .value_counts()
+        .reset_index()
+    )
+    breakdown.columns = ["seniority", "count"]
+    breakdown["percentage"] = (
+        breakdown["count"] / total * 100
+    ).round(1)
+
+    # Fix ordering so chart reads Junior → Mid → Senior → Manager
+    order = ["Junior / Graduate", "Mid-level", "Senior / Lead", "Manager"]
+    breakdown["seniority"] = pd.Categorical(
+        breakdown["seniority"], categories=order, ordered=True
+    )
+    breakdown = breakdown.sort_values("seniority")
+
+    return breakdown, total
+
 def get_top_skills(role, limit=10):
     """Return a DataFrame of top skills with counts and percentages."""
     engine = get_engine()
