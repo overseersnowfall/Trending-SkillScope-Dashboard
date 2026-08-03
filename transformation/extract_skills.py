@@ -30,13 +30,22 @@ def count_skills_by_role(conn):
     counts = defaultdict(lambda: defaultdict(int))
 
     cursor = conn.cursor()
-    cursor.execute("SELECT source, description FROM raw_jobs WHERE description IS NOT NULL")
+    cursor.execute("""
+        SELECT source, job_title, description
+        FROM raw_jobs
+        WHERE description IS NOT NULL
+        AND LENGTH(description) > 100
+    """)
     rows = cursor.fetchall()
     cursor.close()
 
     print(f"Processing {len(rows)} job descriptions...")
-    for role, description in rows:
-        found_skills = find_skills_in_text(description, skills)
+    for role, job_title, description in rows:
+        # Remove job title from description to prevent title bleed
+        clean_desc = description
+        if job_title:
+            clean_desc = description.replace(job_title, "", 1).strip()
+        found_skills = find_skills_in_text(clean_desc, skills)
         for skill in found_skills:
             counts[role][skill] += 1
     return counts

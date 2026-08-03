@@ -1,6 +1,7 @@
 import os
 import requests
 from dotenv import load_dotenv
+from bs4 import BeautifulSoup #to clean up HTML tags in job descriptions
 
 load_dotenv()
 
@@ -142,11 +143,15 @@ def convert_date(date_str):
     except:
         return None
 
+def clean_html(raw_html):
+    """Strip HTML tags and decode HTML entities from Reed descriptions."""
+    if not raw_html:
+        return None
+    soup = BeautifulSoup(raw_html, "html.parser")
+    return soup.get_text(separator=" ").strip()
+
 def fetch_job_details(job_id):
-    """
-    Fetch the full description for one job using its ID.
-    Returns the description string or None if it fails.
-    """
+    """Fetch full description for one job and return clean plain text."""
     url = DETAILS_URL.format(job_id=job_id)
     try:
         response = requests.get(
@@ -155,8 +160,9 @@ def fetch_job_details(job_id):
             timeout=10
         )
         response.raise_for_status()
-        data = response.json()
-        return data.get("jobDescription")
+        data     = response.json()
+        raw_html = data.get("jobDescription")
+        return clean_html(raw_html)
     except requests.exceptions.RequestException:
         return None
 

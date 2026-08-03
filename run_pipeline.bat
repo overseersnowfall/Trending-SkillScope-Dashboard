@@ -1,13 +1,14 @@
 @echo off
 cd /d C:\Users\User\Trending-SkillScope-Dashboard
-call venv\Scripts\activate
 
-echo =================================== >> logs\pipeline.log
-echo %date% %time% >> logs\pipeline.log
-echo =================================== >> logs\pipeline.log
+set LOG=logs\pipeline.log
 
-python ingestion\ingest.py >> logs\pipeline.log 2>&1
-python transformation\extract_skills.py >> logs\pipeline.log 2>&1
+echo =================================== >> %LOG%
+echo %date% %time% >> %LOG%
+echo =================================== >> %LOG%
 
-echo Pipeline complete %time% >> logs\pipeline.log
-echo. >> logs\pipeline.log
+venv\Scripts\python.exe ingestion\ingest.py >> %LOG% 2>&1
+venv\Scripts\python.exe transformation\extract_skills.py >> %LOG% 2>&1
+
+echo Pipeline complete: %time% >> %LOG%
+echo. >> %LOG%
