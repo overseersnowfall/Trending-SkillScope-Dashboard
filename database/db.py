@@ -1,24 +1,31 @@
 import os
 import psycopg2
+from sqlalchemy import create_engine
 from dotenv import load_dotenv
 
 load_dotenv()
 
+
 def _get_db_config():
     """
     Get database credentials.
-    Uses Streamlit secrets when deployed, .env for local development.
+    Tries Streamlit secrets first (cloud deployment).
+    Falls back to .env for local development.
     """
+    # Check if running on Streamlit Cloud
     try:
         import streamlit as st
+        # This line only succeeds if secrets are actually configured
+        host = st.secrets["DB_HOST"]
         return {
-            "host"    : st.secrets["DB_HOST"],
+            "host"    : host,
             "dbname"  : st.secrets["DB_NAME"],
             "user"    : st.secrets["DB_USER"],
             "password": st.secrets["DB_PASSWORD"],
-            "port"    : st.secrets.get("DB_PORT", "5432")
+            "port"    : str(st.secrets.get("DB_PORT", "5432"))
         }
     except Exception:
+        # Running locally — use .env file
         return {
             "host"    : os.getenv("DB_HOST"),
             "dbname"  : os.getenv("DB_NAME"),
@@ -27,12 +34,12 @@ def _get_db_config():
             "port"    : os.getenv("DB_PORT", "5432")
         }
 
+
 def get_connection():
     """Return a live psycopg2 connection to the job_market database."""
     config = _get_db_config()
     return psycopg2.connect(**config, sslmode="require")
 
-from sqlalchemy import create_engine
 
 def get_engine():
     """Return a SQLAlchemy engine for use with pandas read_sql."""
