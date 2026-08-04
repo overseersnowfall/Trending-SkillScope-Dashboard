@@ -245,7 +245,7 @@ The dashboard will open at `http://localhost:8501`.
 Built by two first-year Computer Science students at university as a practical data engineering project, using a real-world tool stack to explore ingestion, transformation, storage, and serving patterns.
 
 - [@overseersnowfall](https://github.com/overseersnowfall)
-- [@larry](https://github.com/larry)
+- [@LarryHuang](https://github.com/LarryHuang-O3)
 
 ---
 
